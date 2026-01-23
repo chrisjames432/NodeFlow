@@ -2,17 +2,22 @@ from flask import Flask, render_template
 from models import db
 import os
 
-app = Flask(__name__)
-
-# Database setup
+# Paths
 basedir = os.path.abspath(os.path.dirname(__file__))
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + os.path.join(basedir, 'instance', 'app.db')
+rootdir = os.path.dirname(basedir)
+sitedir = os.path.join(rootdir, 'site')
+
+app = Flask(__name__, 
+            static_folder=os.path.join(sitedir, 'static'),
+            template_folder=os.path.join(sitedir, 'templates'))
+
+# Database in root folder
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + os.path.join(rootdir, 'app.db')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-app.config['UPLOAD_FOLDER'] = os.path.join(basedir, 'static', 'uploads')
+app.config['UPLOAD_FOLDER'] = os.path.join(sitedir, 'static', 'uploads')
 
 # Create upload folder if it doesn't exist
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
-os.makedirs(os.path.dirname(app.config['SQLALCHEMY_DATABASE_URI'].replace('sqlite:///', '')), exist_ok=True)
 
 # Initialize database
 db.init_app(app)

@@ -9,7 +9,7 @@ class Workspace {
 
     setName(name) {
         this.name = name;
-        return this.saveToDb();
+        return API.updateWorkspace(this.id, { name: this.name, zoom: this.zoom });
     }
 
     addNode(node) {
@@ -26,46 +26,41 @@ class Workspace {
     }
 
     clearNodes() {
-        this.nodes.forEach(node => node.element.remove());
+        this.nodes.forEach(node => node.element?.remove());
         this.nodes = [];
     }
 
-    async saveToDb() {
-        const res = await fetch(`/api/workspaces/${this.id}`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ name: this.name, zoom: this.zoom })
+    saveToDb() {
+        return API.updateWorkspace(this.id, { 
+            name: this.name, 
+            zoom: this.zoom 
         });
-        return res.json();
     }
 
     async loadFromDb() {
-        const res = await fetch(`/api/workspaces/${this.id}`);
-        const data = await res.json();
+        const data = await API.getWorkspace(this.id);
         this.name = data.name;
         this.zoom = data.zoom;
         return data;
     }
 
     static async create(name) {
-        const res = await fetch('/api/workspaces', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ name })
-        });
-        const data = await res.json();
+        const data = await API.createWorkspace(name);
         return new Workspace(data.id, data.name);
     }
 
     static async loadAll() {
-        const res = await fetch('/api/workspaces');
-        const workspaces = await res.json();
+        const workspaces = await API.getAllWorkspaces();
         return workspaces.map(w => new Workspace(w.id, w.name));
     }
 
     static async loadById(id) {
-        const res = await fetch(`/api/workspaces/${id}`);
-        const data = await res.json();
+        const data = await API.getWorkspace(id);
         return new Workspace(data.id, data.name);
     }
+
+    static async delete(id) {
+        return API.deleteWorkspace(id);
+    }
 }
+

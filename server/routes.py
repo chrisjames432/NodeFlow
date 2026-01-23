@@ -58,7 +58,9 @@ def create_node():
         position_x=data.get('x', 0),
         position_y=data.get('y', 0)
     )
-    node.set_data(data.get('data', {}))
+    # Store the data (includes name)
+    if 'data' in data:
+        node.set_data(data['data'])
     db.session.add(node)
     db.session.commit()
     return jsonify(node.to_dict()), 201
@@ -66,14 +68,17 @@ def create_node():
 @api_bp.route('/nodes/<int:node_id>', methods=['PUT'])
 def update_node(node_id):
     node = Node.query.get_or_404(node_id)
-    data = request.json
+    req_data = request.json
     
-    if 'x' in data:
-        node.position_x = data['x']
-    if 'y' in data:
-        node.position_y = data['y']
-    if 'data' in data:
-        node.set_data(data['data'])
+    if 'x' in req_data:
+        node.position_x = req_data['x']
+    if 'y' in req_data:
+        node.position_y = req_data['y']
+    if 'data' in req_data:
+        # Merge new data with existing data
+        existing_data = node.get_data()
+        existing_data.update(req_data['data'])
+        node.set_data(existing_data)
     
     db.session.commit()
     return jsonify(node.to_dict())

@@ -220,16 +220,20 @@ const switchWorkspace = async () => {
     workspaceEl.innerHTML = '';
     workspace.clearNodes();
     
-    // Load nodes from DB
+    // Load nodes from DB - store dbId!
     fullData.nodes.forEach(nodeData => {
-        const node = addNodeToWorkspace(nodeData.x, nodeData.y);
+        const node = new Node(nodeData.id, nodeData.x, nodeData.y, (deletedId) => {
+            workspace.removeNode(deletedId);
+        });
         node.dbId = nodeData.id;
+        node.render(workspaceEl);
+        node.getHeader().addEventListener('mousedown', (e) => startDrag(e, node));
+        workspace.addNode(node);
     });
     
     // Update zoom display
     getZoomDisplay().textContent = `Zoom: ${Math.round(state.zoom * 100)}%`;
-    const workspaceEl2 = getWorkspace();
-    workspaceEl2.style.transform = `scale(${state.zoom})`;
+    workspaceEl.style.transform = `scale(${state.zoom})`;
 };
 
 const startRename = () => {
@@ -313,11 +317,21 @@ const loadAllWorkspaces = async () => {
         getNameDisplay().textContent = state.currentWorkspace.name;
         select.value = state.currentWorkspace.id;
         
-        // Load nodes
+        // Load nodes with dbId
+        const workspaceEl = getWorkspace();
         fullData.nodes.forEach(nodeData => {
-            const node = addNodeToWorkspace(nodeData.x, nodeData.y);
+            const node = new Node(nodeData.id, nodeData.x, nodeData.y, (deletedId) => {
+                state.currentWorkspace.removeNode(deletedId);
+            });
             node.dbId = nodeData.id;
+            node.render(workspaceEl);
+            node.getHeader().addEventListener('mousedown', (e) => startDrag(e, node));
+            state.currentWorkspace.addNode(node);
         });
+        
+        // Set zoom
+        getZoomDisplay().textContent = `Zoom: ${Math.round(state.zoom * 100)}%`;
+        workspaceEl.style.transform = `scale(${state.zoom})`;
     } else {
         createNewWorkspace();
     }

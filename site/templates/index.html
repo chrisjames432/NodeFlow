@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NodeFlow</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <!-- Home Screen -->
+    <div id="homeScreen" class="screen">
+        <div class="home-container">
+            <div class="home-header">
+                <h1>NodeFlow</h1>
+                <p>Visual workflow editor</p>
+            </div>
+            
+            <div class="home-actions">
+                <button id="newWorkspaceBtn" class="btn btn-primary">+ New Workspace</button>
+            </div>
+            
+            <div class="workspaces-section">
+                <h2>Your Workspaces</h2>
+                <div id="workspacesList" class="workspaces-grid"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Editor Screen -->
+    <div id="editorScreen" class="screen" style="display: none;">
+        <div class="editor-nav">
+            <button id="backBtn" class="btn btn-secondary">← Back</button>
+            <div id="workspaceName">
+                <span id="nameDisplay">Untitled Workspace</span>
+            </div>
+            <div class="editor-nav-right">
+                <button id="addNodeBtn" class="btn btn-primary">+ Node</button>
+                <span id="zoomLevel">Zoom: 100%</span>
+            </div>
+        </div>
+        
+        <div id="viewport" class="viewport">
+            <div id="workspace" class="workspace"></div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="{{ url_for('static', filename='api.js') }}"></script>
+    <script src="{{ url_for('static', filename='node.js') }}"></script>
+    <script src="{{ url_for('static', filename='workspace.js') }}"></script>
+    <script src="{{ url_for('static', filename='ui.js') }}"></script>
+    <script src="{{ url_for('static', filename='app.js') }}"></script>
+</body>
+</html>
