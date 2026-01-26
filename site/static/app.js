@@ -9,7 +9,8 @@ const app = {
         panStartX: 0,
         panStartY: 0,
         panStartScrollX: 0,
-        panStartScrollY: 0
+        panStartScrollY: 0,
+        connectionManager: null
     },
 
     // DOM Cache
@@ -78,6 +79,9 @@ const app = {
         this.state.currentWorkspace = workspace;
         this.state.zoom = workspace.zoom;
         
+        // Initialize connection manager
+        this.state.connectionManager = new ConnectionManager(this.dom.viewport, this.dom.workspace);
+        
         // Update UI
         UI.setWorkspaceName(workspace.name);
         UI.updateZoomDisplay(this.state.zoom);
@@ -86,6 +90,21 @@ const app = {
         // Load nodes
         UI.loadNodesIntoWorkspace(this.dom.workspace, workspace, fullData.nodes);
         UI.setWorkspaceZoom(this.state.zoom);
+        
+        // Attach port events to items
+        setTimeout(() => {
+            document.querySelectorAll('.item-port').forEach(port => {
+                port.addEventListener('mousedown', (e) => {
+                    const itemId = port.getAttribute('data-item-id');
+                    const portType = port.getAttribute('data-port-type');
+                    this.state.connectionManager.startConnection(e, itemId, portType);
+                });
+            });
+        }, 100);
+        
+        if (fullData.connections) {
+            this.state.connectionManager.loadConnections(fullData.connections);
+        }
     },
 
     async goHome() {
@@ -94,6 +113,7 @@ const app = {
         }
         this.state.currentWorkspace = null;
         this.state.zoom = 1;
+        this.state.connectionManager = null;
         await UI.showHomeScreen();
     },
 

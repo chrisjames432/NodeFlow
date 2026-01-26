@@ -81,5 +81,23 @@ const API = {
             body: formData
         });
         return res.json();
+    },
+
+    // AI Image generation
+    generateImage: async (prompt, options = {}) => {
+        const res = await fetch('/api/generate-image', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+                prompt,
+                aspectRatio: options.aspectRatio || '1:1',
+                model: options.model || 'gemini-2.5-flash-image'
+            })
+        });
+        if (!res.ok) {
+            const error = await res.json();
+            throw new Error(error.error || 'Image generation failed');
+        }
+        return res.json();
     }
 };

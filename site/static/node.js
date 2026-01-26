@@ -6,6 +6,8 @@ class Node {
         this.name = name;
         this.dbId = null;
         this.onDelete = onDelete;
+        this.items = [];
+        this.itemCounter = 0;
         this.element = this.createDOM();
     }
 
@@ -40,7 +42,44 @@ class Node {
 
         const content = document.createElement('div');
         content.className = 'node-content';
-        content.textContent = 'Drag to move\nDouble-click title to rename';
+
+        const itemsContainer = document.createElement('div');
+        itemsContainer.className = 'node-items';
+        this.itemsContainer = itemsContainer;
+
+        const controls = document.createElement('div');
+        controls.className = 'node-controls';
+
+        const addImageBtn = document.createElement('button');
+        addImageBtn.className = 'node-btn-small';
+        addImageBtn.textContent = '🖼️ Image';
+        addImageBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            this.addImage();
+        });
+
+        const addTextBtn = document.createElement('button');
+        addTextBtn.className = 'node-btn-small';
+        addTextBtn.textContent = '📝 Text';
+        addTextBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            this.addText();
+        });
+
+        const addAIImageBtn = document.createElement('button');
+        addAIImageBtn.className = 'node-btn-small';
+        addAIImageBtn.textContent = '🤖 AI';
+        addAIImageBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            this.generateAIImage();
+        });
+
+        controls.appendChild(addImageBtn);
+        controls.appendChild(addTextBtn);
+        controls.appendChild(addAIImageBtn);
+
+        content.appendChild(itemsContainer);
+        content.appendChild(controls);
 
         nodeEl.appendChild(header);
         nodeEl.appendChild(content);
@@ -55,9 +94,172 @@ class Node {
     async save() {
         if (!this.dbId) return;
         
-        await API.updateNode(this.dbId, this.x, this.y, { 
-            data: { name: this.name } 
+        const itemsData = this.items.map(item => {
+            const json = item.toJSON();
+            console.log('Item ID:', json.id, 'Type:', json.type, 'Data:', JSON.stringify(json.data));
+            return json;
         });
+        console.log('Saving node with items:', itemsData);
+        
+        await API.updateNode(this.dbId, this.x, this.y, { 
+            data: {
+                name: this.name,
+                items: itemsData
+            }
+        });
+    }
+
+    addImage() {
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = 'image/*';
+        input.addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = async (event) => {
+                    const itemId = this.itemCounter++;
+                    const item = new Item(itemId, 'image', { src: event.target.result }, this.id);
+                    item.onDelete = (id) => this.removeItem(id);
+                    this.items.push(item);
+                    this.itemsContainer.appendChild(item.createDOM());
+                    await this.save();
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+        input.click();
+    }
+
+    addText() {
+        const itemId = this.itemCounter++;
+        const item = new Item(itemId, 'text', { content: 'Enter text...' }, this.id);
+        item.onDelete = (id) => this.removeItem(id);
+        
+        const itemEl = item.createDOM();
+        this.items.push(item);
+        this.itemsContainer.appendChild(itemEl);
+
+        const textDiv = itemEl.querySelector('.item-text');
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.className = 'item-text-input';
+        input.value = item.data.content;
+        input.addEventListener('blur', async () => {
+            item.data.content = input.value;
+            textDiv.textContent = input.value;
+            input.replaceWith(textDiv);
+            await this.save();
+        });
+        input.addEventListener('keydown', async (e) => {
+            if (e.key === 'Enter') {
+                item.data.content = input.value;
+                textDiv.textContent = input.value;
+                input.replaceWith(textDiv);
+                await this.save();
+            }
+        });
+        textDiv.replaceWith(input);
+        input.focus();
+    }
+
+    removeItem(itemId) {
+        this.items = this.items.filter(i => i.id !== itemId);
+        this.save();
+    }
+
+    loadItems(itemsData) {
+        if (!itemsData || !Array.isArray(itemsData)) {
+            console.log('loadItems called but no items or not an array:', itemsData);
+            return;
+        }
+        
+        console.log('loadItems called with:', itemsData);
+        
+        this.items = itemsData.map(data => {
+            console.log('Creating item from data:', data);
+            const item = Item.fromJSON(data);
+            item.nodeId = this.id; // Set the node ID
+            item.onDelete = (id) => this.removeItem(id);
+            return item;
+        });
+
+        this.items.forEach(item => {
+            console.log('Appending item to DOM:', item.type, item.data);
+            this.itemsContainer.appendChild(item.createDOM());
+        });
+    }
+
+    generateAIImage() {
+        const itemId = this.itemCounter++;
+        const item = new Item(itemId, 'ai-prompt', { 
+            prompt: '',
+            aspectRatio: '1:1',
+            model: 'gemini-2.5-flash-image'
+        }, this.id);
+        item.element = null;
+        
+        item.onSubmit = async (promptText, submittedItemId, options) => {
+            console.log('onSubmit called with:', promptText, options);
+            
+            // Create a NEW image item instead of converting the prompt
+            const imageItemId = this.itemCounter++;
+            const imageItem = new Item(imageItemId, 'ai-image', { 
+                generating: true,
+                prompt: promptText,
+                aspectRatio: options.aspectRatio,
+                model: options.model
+            }, this.id);
+            
+            imageItem.onDelete = (id) => this.removeItem(id);
+            this.items.push(imageItem);
+            
+            const imageEl = imageItem.createDOM();
+            this.itemsContainer.appendChild(imageEl);
+            console.log('Created new image item:', imageItemId);
+
+            try {
+                // Call API to generate image with options
+                console.log('Calling API.generateImage...');
+                const result = await API.generateImage(promptText, {
+                    aspectRatio: options.aspectRatio,
+                    model: options.model
+                });
+                console.log('Image generated:', result);
+                
+                // Update the image item with result
+                imageItem.data.generating = false;
+                imageItem.data.path = result.path;
+                console.log('Image item after generation:', { type: imageItem.type, data: imageItem.data });
+                
+                // Replace the loading element with final image
+                const loadingEl = document.getElementById(imageItem.getUniqueId());
+                if (loadingEl) {
+                    const finalEl = imageItem.createDOM();
+                    loadingEl.replaceWith(finalEl);
+                    console.log('Element replaced with image');
+                }
+                
+                console.log('About to save node...');
+                await this.save();
+                console.log('Node saved successfully');
+            } catch (error) {
+                console.error('Generation error:', error);
+                imageItem.data.generating = false;
+                imageItem.data.error = error.message;
+                
+                const errorEl = document.getElementById(imageItem.getUniqueId());
+                if (errorEl) {
+                    const failEl = imageItem.createDOM();
+                    errorEl.replaceWith(failEl);
+                }
+            }
+        };
+        
+        item.onDelete = (id) => this.removeItem(id);
+        this.items.push(item);
+        const itemEl = item.createDOM();
+        this.itemsContainer.appendChild(itemEl);
     }
 
     // Create node in database (returns dbId)
@@ -143,6 +345,17 @@ class Node {
         const name = (data.data && data.data.name) || `Node ${data.id}`;
         const node = new Node(data.id, data.x, data.y, name, onDelete);
         node.dbId = data.id;
+        
+        console.log('Node.fromData called with:', data);
+        
+        // Load items if they exist
+        if (data.data && data.data.items) {
+            console.log('Items found in node data, loading:', data.data.items);
+            node.loadItems(data.data.items);
+        } else {
+            console.log('No items found in node data');
+        }
+        
         return node;
     }
 }

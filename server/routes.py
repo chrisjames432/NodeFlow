@@ -2,6 +2,9 @@ from flask import Blueprint, request, jsonify, current_app
 from models import db, Workspace, Node, Connection
 from werkzeug.utils import secure_filename
 import os
+import sys
+from datetime import datetime
+from pathlib import Path
 
 api_bp = Blueprint('api', __name__)
 
@@ -126,3 +129,49 @@ def upload_image():
         return jsonify({'filename': filename, 'url': f'/static/uploads/{filename}'})
     
     return jsonify({'error': 'Upload failed'}), 400
+
+# AI Image generation endpoint
+@api_bp.route('/generate-image', methods=['POST'])
+def generate_image():
+    try:
+        data = request.json
+        prompt = data.get('prompt', '')
+        aspect_ratio = data.get('aspectRatio', '1:1')
+        model = data.get('model', 'gemini-2.5-flash-image')
+        
+        if not prompt:
+            return jsonify({'error': 'Prompt required'}), 400
+        
+        # Add ai-agent-toolkit to path
+        toolkit_path = os.path.join(os.path.dirname(__file__), '..', 'ai-agent-toolkit')
+        if toolkit_path not in sys.path:
+            sys.path.insert(0, toolkit_path)
+        
+        from providers.gemini_image import generate_image as gen_image
+        
+        # Generate image with specified parameters
+        result = gen_image(prompt, aspect_ratio=aspect_ratio, model=model)
+        
+        # Save to /images folder
+        images_dir = os.path.join(os.path.dirname(__file__), '..', 'images')
+        os.makedirs(images_dir, exist_ok=True)
+        
+        timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S_%f')[:-3]
+        filename = f"generated_{timestamp}.png"
+        filepath = os.path.join(images_dir, filename)
+        
+        # Save image bytes
+        with open(filepath, 'wb') as f:
+            f.write(result['image_bytes'])
+        
+        return jsonify({
+            'filename': filename,
+            'path': f'/images/{filename}',
+            'prompt': prompt,
+            'aspectRatio': aspect_ratio,
+            'model': model
+        }), 201
+    
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+

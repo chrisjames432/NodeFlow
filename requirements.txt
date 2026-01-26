@@ -1,0 +1,17 @@
+flask>=2.0.0
+flask-sqlalchemy>=3.0.0
+# OpenAI (GPT models)
+openai>=1.0.0
+
+# Anthropic (Claude models)
+anthropic>=0.40.0
+
+# Google AI (Gemini models)
+google-genai>=1.0.0
+
+# xAI (Grok models) - uses OpenAI-compatible API
+# openai package works for xAI
+
+# Utilities
+python-dotenv>=1.0.0
+requests>=2.31.0
