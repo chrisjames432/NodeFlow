@@ -34,7 +34,11 @@
                 <span id="nameDisplay">Untitled Workspace</span>
             </div>
             <div class="editor-nav-right">
-                <button id="addNodeBtn" class="btn btn-primary">+ Node</button>
+                <button id="addTextBtn" class="btn btn-primary">+ Text</button>
+                <button id="addImageBtn" class="btn btn-primary">+ Image</button>
+                <button id="addGenerateBtn" class="btn btn-primary">+ Generate</button>
+                <button id="addGenerateTextBtn" class="btn btn-primary">+ Generate Text</button>
+                <button id="addImageCollectorBtn" class="btn btn-primary">+ Image Grid</button>
                 <span id="zoomLevel">Zoom: 100%</span>
             </div>
         </div>
@@ -46,9 +50,9 @@
 
     <!-- Scripts -->
     <script src="{{ url_for('static', filename='api.js') }}"></script>
-    <script src="{{ url_for('static', filename='item.js') }}"></script>
     <script src="{{ url_for('static', filename='node.js') }}"></script>
-    <script src="{{ url_for('static', filename='connections.js') }}"></script>
+    <script src="{{ url_for('static', filename='connection.js') }}"></script>
+    <script src="{{ url_for('static', filename='connectionManager.js') }}"></script>
     <script src="{{ url_for('static', filename='workspace.js') }}"></script>
     <script src="{{ url_for('static', filename='ui.js') }}"></script>
     <script src="{{ url_for('static', filename='app.js') }}"></script>

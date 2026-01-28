@@ -138,7 +138,11 @@ const UI = {
 
     // Node loading helper
     loadNodesIntoWorkspace: (workspaceEl, workspace, nodeDataArray) => {
+        const connectionLayer = workspaceEl.querySelector('.connections-svg');
         workspaceEl.innerHTML = '';
+        if (connectionLayer) {
+            workspaceEl.appendChild(connectionLayer);
+        }
         workspace.clearNodes();
         workspace.nodeCounter = 0;
         
@@ -152,11 +156,29 @@ const UI = {
             node.getHeader().addEventListener('mousedown', (e) => app.dragNode(e, node));
             workspace.addNode(node);
             workspace.nodeCounter = Math.max(workspace.nodeCounter, node.dbId + 1);
+            
+            // Attach port events
+            setTimeout(() => {
+                const ports = node.element.querySelectorAll('.connection-port');
+                ports.forEach(port => {
+                    port.addEventListener('mousedown', (e) => {
+                        const nodeId = port.getAttribute('data-node-id');
+                        const portType = port.getAttribute('data-port-type');
+                        app.state.connectionManager.startConnection(e, nodeId, portType);
+                    });
+                });
+            }, 50);
         });
     },
 
     clearWorkspace: () => {
         const workspace = document.getElementById('workspace');
-        if (workspace) workspace.innerHTML = '';
+        if (workspace) {
+            const connectionLayer = workspace.querySelector('.connections-svg');
+            workspace.innerHTML = '';
+            if (connectionLayer) {
+                workspace.appendChild(connectionLayer);
+            }
+        }
     }
 };

@@ -17,7 +17,6 @@ const app = {
     dom: {
         viewport: null,
         workspace: null,
-        addNodeBtn: null,
         backBtn: null,
         newWorkspaceBtn: null,
         nameDisplay: null,
@@ -25,7 +24,6 @@ const app = {
         init() {
             this.viewport = document.getElementById('viewport');
             this.workspace = document.getElementById('workspace');
-            this.addNodeBtn = document.getElementById('addNodeBtn');
             this.backBtn = document.getElementById('backBtn');
             this.newWorkspaceBtn = document.getElementById('newWorkspaceBtn');
             this.nameDisplay = document.getElementById('nameDisplay');
@@ -44,9 +42,29 @@ const app = {
 
     // Attach events for editor screen
     attachEditorEvents() {
-        if (this.dom.addNodeBtn) {
-            this.dom.addNodeBtn.addEventListener('click', () => this.createNode());
+        // Add node buttons
+        const addTextBtn = document.getElementById('addTextBtn');
+        const addImageBtn = document.getElementById('addImageBtn');
+        const addGenerateBtn = document.getElementById('addGenerateBtn');
+        const addGenerateTextBtn = document.getElementById('addGenerateTextBtn');
+        const addImageCollectorBtn = document.getElementById('addImageCollectorBtn');
+        
+        if (addTextBtn) {
+            addTextBtn.addEventListener('click', () => this.createNode('text'));
         }
+        if (addImageBtn) {
+            addImageBtn.addEventListener('click', () => this.createNode('image'));
+        }
+        if (addGenerateBtn) {
+            addGenerateBtn.addEventListener('click', () => this.createNode('generate'));
+        }
+        if (addGenerateTextBtn) {
+            addGenerateTextBtn.addEventListener('click', () => this.createNode('generate-text'));
+        }
+        if (addImageCollectorBtn) {
+            addImageCollectorBtn.addEventListener('click', () => this.createNode('image-collector'));
+        }
+        
         if (this.dom.backBtn) {
             this.dom.backBtn.addEventListener('click', () => this.goHome());
         }
@@ -81,6 +99,22 @@ const app = {
         
         // Initialize connection manager
         this.state.connectionManager = new ConnectionManager(this.dom.viewport, this.dom.workspace);
+        this.state.connectionManager.setZoom(this.state.zoom);
+
+        // Persist connections
+        this.state.connectionManager.onConnectionCreated = async (conn) => {
+            if (!this.state.currentWorkspace) return;
+            const fromId = parseInt(conn.fromNodeId.replace('node-', ''), 10);
+            const toId = parseInt(conn.toNodeId.replace('node-', ''), 10);
+            const saved = await API.createConnection(this.state.currentWorkspace.id, fromId, toId);
+            conn.dbId = saved.id;
+        };
+
+        this.state.connectionManager.onConnectionDeleted = async (conn) => {
+            if (conn.dbId) {
+                await API.deleteConnection(conn.dbId);
+            }
+        };
         
         // Update UI
         UI.setWorkspaceName(workspace.name);
@@ -91,20 +125,24 @@ const app = {
         UI.loadNodesIntoWorkspace(this.dom.workspace, workspace, fullData.nodes);
         UI.setWorkspaceZoom(this.state.zoom);
         
-        // Attach port events to items
+        // Attach port events to nodes
         setTimeout(() => {
-            document.querySelectorAll('.item-port').forEach(port => {
-                port.addEventListener('mousedown', (e) => {
-                    const itemId = port.getAttribute('data-item-id');
-                    const portType = port.getAttribute('data-port-type');
-                    this.state.connectionManager.startConnection(e, itemId, portType);
-                });
-            });
+            this.attachPortEvents();
         }, 100);
         
         if (fullData.connections) {
             this.state.connectionManager.loadConnections(fullData.connections);
         }
+    },
+    
+    attachPortEvents() {
+        document.querySelectorAll('.connection-port').forEach(port => {
+            port.addEventListener('mousedown', (e) => {
+                const nodeId = port.getAttribute('data-node-id');
+                const portType = port.getAttribute('data-port-type');
+                this.state.connectionManager.startConnection(e, nodeId, portType);
+            });
+        });
     },
 
     async goHome() {
@@ -125,20 +163,52 @@ const app = {
     },
 
     // Node operations
-    async createNode() {
+    async createNode(type = 'text', options = {}) {
         if (!this.state.currentWorkspace) return;
-        
         const viewport = this.dom.viewport;
+        
+        const providedX = typeof options.x === 'number' ? options.x : null;
+        const providedY = typeof options.y === 'number' ? options.y : null;
+        
         const centerX = viewport.scrollLeft / this.state.zoom + viewport.clientWidth / (2 * this.state.zoom);
         const centerY = viewport.scrollTop / this.state.zoom + viewport.clientHeight / (2 * this.state.zoom);
         
-        const x = centerX - 150;
-        const y = centerY - 200;
+        const x = providedX !== null ? providedX : centerX - 150;
+        const y = providedY !== null ? providedY : centerY - 100;
         
         const id = this.state.currentWorkspace.nodeCounter++;
-        const nodeName = `Node ${id}`;
         
-        const node = new Node(id, x, y, nodeName, (deletedId) => {
+        // Initialize data based on node type
+        const initialData = options.data ? { ...options.data } : {};
+        if (type === 'text') {
+            initialData.text = initialData.text || '';
+        } else if (type === 'image') {
+            initialData.src = initialData.src || null;
+            initialData.width = initialData.width || 220;
+            initialData.height = initialData.height || 240;
+        } else if (type === 'generate') {
+            initialData.prompt = initialData.prompt || '';
+            initialData.aspectRatio = initialData.aspectRatio || '1:1';
+            initialData.model = initialData.model || 'gemini-2.5-flash-image';
+            initialData.generatedImage = initialData.generatedImage || null;
+        } else if (type === 'generated-image') {
+            initialData.src = initialData.src || null;
+            initialData.width = initialData.width || 220;
+            initialData.height = initialData.height || 240;
+        } else if (type === 'image-collector') {
+            initialData.images = initialData.images || [];
+            initialData.width = initialData.width || 1000;
+            initialData.height = initialData.height || 620;
+        } else if (type === 'generate-text') {
+            initialData.prompt = initialData.prompt || '';
+            initialData.system = initialData.system || '';
+            initialData.provider = initialData.provider || 'openai';
+            initialData.model = initialData.model || '';
+            initialData.response = initialData.response || '';
+            initialData.generating = false;
+        }
+        
+        const node = new Node(id, x, y, type, initialData, (deletedId) => {
             this.state.currentWorkspace.removeNode(deletedId);
         });
         
@@ -148,10 +218,30 @@ const app = {
         
         // Node saves itself to DB
         await node.create(this.state.currentWorkspace.id);
+        
+        // Attach port events
+        const ports = node.element.querySelectorAll('.connection-port');
+        ports.forEach(port => {
+            port.addEventListener('mousedown', (e) => {
+                const nodeId = port.getAttribute('data-node-id');
+                const portType = port.getAttribute('data-port-type');
+                this.state.connectionManager.startConnection(e, nodeId, portType);
+            });
+        });
     },
 
     // Drag handling
     dragNode(e, node) {
+        // Only drag from header, not inputs/textareas/buttons
+        if (e.target.tagName === 'INPUT' || 
+            e.target.tagName === 'TEXTAREA' || 
+            e.target.tagName === 'BUTTON' ||
+            e.target.tagName === 'SELECT') {
+            return;
+        }
+        
+        e.preventDefault();
+        
         const rect = node.element.getBoundingClientRect();
         
         this.state.draggedNode = node.id;
@@ -177,6 +267,11 @@ const app = {
         const y = (e.clientY - viewport.getBoundingClientRect().top + viewport.scrollTop) / this.state.zoom - this.state.dragOffset.y;
         
         node.setPosition(Math.max(0, x), Math.max(0, y));
+        
+        // Redraw connections while dragging
+        if (this.state.connectionManager) {
+            this.state.connectionManager.redrawAll();
+        }
     },
 
     async stopDrag() {
@@ -220,6 +315,12 @@ const app = {
         
         UI.updateZoomDisplay(this.state.zoom);
         UI.setWorkspaceZoom(this.state.zoom);
+        
+        // Update connection manager zoom
+        if (this.state.connectionManager) {
+            this.state.connectionManager.setZoom(this.state.zoom);
+            this.state.connectionManager.redrawAll();
+        }
     },
 
     // Pan handling

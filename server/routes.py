@@ -175,3 +175,38 @@ def generate_image():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+# Text generation endpoint
+@api_bp.route('/generate-text', methods=['POST'])
+def generate_text():
+    try:
+        data = request.json
+        prompt = data.get('prompt', '')
+        system_prompt = data.get('system', '')
+        provider = data.get('provider', 'openai')
+        model = data.get('model')
+        if not prompt:
+            return jsonify({'error': 'Prompt required'}), 400
+
+        # Add ai-agent-toolkit to path
+        toolkit_path = os.path.join(os.path.dirname(__file__), '..', 'ai-agent-toolkit')
+        if toolkit_path not in sys.path:
+            sys.path.insert(0, toolkit_path)
+
+        from toolkit import text as toolkit_text
+
+        full_prompt = prompt
+        if system_prompt:
+            full_prompt = f"{system_prompt}\n\nUser: {prompt}"
+
+        result = toolkit_text(full_prompt, provider=provider, model=model)
+
+        return jsonify({
+            'provider': provider,
+            'model': model,
+            'prompt': prompt,
+            'system': system_prompt,
+            'response': result
+        }), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+

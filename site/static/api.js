@@ -37,13 +37,13 @@ const API = {
     },
 
     // Node endpoints
-    createNode: async (workspaceId, x, y, data = {}) => {
+    createNode: async (workspaceId, x, y, type = 'text', data = {}) => {
         const res = await fetch('/api/nodes', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 workspace_id: workspaceId,
-                type: 'default',
+                type: type,
                 x,
                 y,
                 data
@@ -83,6 +83,27 @@ const API = {
         return res.json();
     },
 
+    // Connection endpoints
+    createConnection: async (workspaceId, fromNodeId, toNodeId) => {
+        const res = await fetch('/api/connections', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                workspace_id: workspaceId,
+                from_node_id: fromNodeId,
+                to_node_id: toNodeId
+            })
+        });
+        return res.json();
+    },
+
+    deleteConnection: async (id) => {
+        const res = await fetch(`/api/connections/${id}`, {
+            method: 'DELETE'
+        });
+        return res.status === 204;
+    },
+
     // AI Image generation
     generateImage: async (prompt, options = {}) => {
         const res = await fetch('/api/generate-image', {
@@ -99,5 +120,23 @@ const API = {
             throw new Error(error.error || 'Image generation failed');
         }
         return res.json();
-    }
+    },
+
+    generateText: async (prompt, options = {}) => {
+        const res = await fetch('/api/generate-text', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                prompt,
+                system: options.system || '',
+                provider: options.provider || 'openai',
+                model: options.model || null
+            })
+        });
+        if (!res.ok) {
+            const error = await res.json();
+            throw new Error(error.error || 'Text generation failed');
+        }
+        return res.json();
+    },
 };
